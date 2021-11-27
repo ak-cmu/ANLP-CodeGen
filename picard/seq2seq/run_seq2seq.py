@@ -30,6 +30,7 @@ from seq2seq.utils.dataset import DataTrainingArguments, DataArguments
 from seq2seq.utils.dataset_loader import load_dataset
 from seq2seq.utils.spider import SpiderTrainer
 from seq2seq.utils.cosql import CoSQLTrainer
+from seq2seq.prompttuning import SoftEmbedding # addition for prompt tuning
 
 
 def main() -> None:
@@ -169,6 +170,17 @@ def main() -> None:
         )
         if isinstance(model, T5ForConditionalGeneration):
             model.resize_token_embeddings(len(tokenizer))
+
+        ### Added for prompt tuning
+        for param in model.parameters(): # Freeze all parameters in T5
+            param.requires_grad = False
+        
+        s_wte = SoftEmbedding(model.get_input_embeddings(), 
+                      n_tokens=10, #TODO: Pass in with config file 
+                      initialize_from_vocab=True) # TODO: Pass in with config file
+
+        model.set_input_embeddings(s_wte)
+        ### End of prompt tuning addition.
 
         if training_args.label_smoothing_factor > 0 and not hasattr(model, "prepare_decoder_input_ids_from_labels"):
             logger.warning(
